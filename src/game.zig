@@ -780,7 +780,8 @@ pub fn releasePlace(_: main.Window.Key.Modifiers) void {
 pub fn pressBreak(_: main.Window.Key.Modifiers) void {
 	const time = main.timestamp();
 	nextBlockBreakTime = time.addDuration(main.settings.updateRepeatDelay);
-	Player.breakBlock(0);
+	const initialBreakDelta: f64 = @as(f64, @floatFromInt(main.settings.updateRepeatSpeed.toNanoseconds())) / 1.0e9;
+	Player.breakBlock(initialBreakDelta);
 }
 
 pub fn releaseBreak(_: main.Window.Key.Modifiers) void {
