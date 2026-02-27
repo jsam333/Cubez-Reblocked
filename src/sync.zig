@@ -1033,7 +1033,11 @@ pub const Command = struct { // MARK: Command
 			const amount = @min(self.source.ref().amount, self.desiredAmount);
 			if (ctx.side == .server) {
 				const direction = vec.rotateZ(vec.rotateX(Vec3f{0, 1, 0}, -ctx.user.?.player.rot[0]), -ctx.user.?.player.rot[2]);
-				main.server.world.?.dropWithCooldown(.{.item = self.source.ref().item.clone(), .amount = amount}, ctx.user.?.player.pos, direction, 20, main.server.updatesPerSec*2);
+				const throwVelocity: f32 = 20.0 / 4.0;
+				var throwDirection = direction;
+				throwDirection[2] += 0.20;
+				throwDirection = vec.normalize(throwDirection);
+				main.server.world.?.dropWithCooldown(.{.item = self.source.ref().item.clone(), .amount = amount}, ctx.user.?.player.pos, throwDirection, throwVelocity, main.server.updatesPerSec*2);
 			}
 			ctx.execute(.{.delete = .{
 				.source = self.source,

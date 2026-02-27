@@ -3,6 +3,7 @@ logs/
 zig-out/
 zig-cache/
 .zig-cache/
+.snapshots/
 serverAssets/
 gamecontrollerdb.txt
 gamecontrollerdb.stamp

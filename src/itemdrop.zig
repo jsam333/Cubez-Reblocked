@@ -358,11 +358,13 @@ pub const ItemDropManager = struct { // MARK: ItemDropManager
 			return;
 		}
 		vel.* += Vec3d{0, 0, -gravity*deltaTime};
+		var onGround: bool = false;
 		inline for (0..3) |i| {
 			const move = vel.*[i]*deltaTime; // + acceleration[i]*deltaTime;
 			if (main.game.collision.collides(.server, @enumFromInt(i), move, pos.*, hitBox)) |box| {
 				if (move < 0) {
 					pos.*[i] = box.max[i] + radius;
+					if (i == 2) onGround = true;
 				} else {
 					pos.*[i] = box.max[i] - radius;
 				}
@@ -373,6 +375,19 @@ pub const ItemDropManager = struct { // MARK: ItemDropManager
 		}
 		// Apply drag:
 		vel.* *= @splat(@max(0, 1 - self.airDragFactor*deltaTime));
+
+		// Apply stronger ground drag when the item is touching a surface.
+		const grounded = onGround or (main.game.collision.collides(.server, .z, -0.0001, pos.*, hitBox) != null);
+		if (grounded) {
+			const groundFrictionScale: f64 = 0.12;
+			const groundFriction = @as(f64, @floatCast(main.game.collision.calculateSurfaceProperties(.server, pos.*, hitBox, @floatCast(self.airDragFactor)).friction))*groundFrictionScale;
+			const drag = std.math.exp(-@max(0, groundFriction)*deltaTime);
+			vel.*[0] *= drag;
+			vel.*[1] *= drag;
+			const minVelocity: f64 = 0.0001;
+			if (@abs(vel.*[0]) < minVelocity) vel.*[0] = 0;
+			if (@abs(vel.*[1]) < minVelocity) vel.*[1] = 0;
+		}
 	}
 
 	fn fixStuckInBlock(self: *ItemDropManager, chunk: *ServerChunk, pos: *Vec3d, vel: *Vec3d, deltaTime: f64) void {
