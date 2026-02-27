@@ -770,6 +770,10 @@ var nextBlockBreakTime: ?std.Io.Timestamp = null;
 pub fn pressPlace(mods: main.Window.Key.Modifiers) void {
 	const time = main.timestamp();
 	nextBlockPlaceTime = time.addDuration(main.settings.updateRepeatDelay);
+	// Trigger air swing if no block is selected
+	if (main.renderer.MeshSelection.selectedBlockPos == null) {
+		itemdrop.ItemDisplayManager.startSwing(.air, 0.3);
+	}
 	Player.placeBlock(mods);
 }
 
@@ -781,6 +785,10 @@ pub fn pressBreak(_: main.Window.Key.Modifiers) void {
 	const time = main.timestamp();
 	nextBlockBreakTime = time.addDuration(main.settings.updateRepeatDelay);
 	const initialBreakDelta: f64 = @as(f64, @floatFromInt(main.settings.updateRepeatSpeed.toNanoseconds())) / 1.0e9;
+	// Trigger air swing if no block is selected
+	if (main.renderer.MeshSelection.selectedBlockPos == null) {
+		itemdrop.ItemDisplayManager.startSwing(.air, 0.3);
+	}
 	Player.breakBlock(initialBreakDelta);
 }
 

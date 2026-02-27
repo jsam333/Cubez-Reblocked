@@ -565,6 +565,17 @@ pub const ItemDisplayManager = struct { // MARK: ItemDisplayManager
 	var cameraFollowVel: Vec3f = @splat(0);
 	const damping: Vec3f = @splat(130);
 
+	// Swing animation state
+	pub const SwingType = enum {
+		break_, // Breaking block - fast forward arc
+		place, // Placing block - gentle downward motion
+		air, // Swinging at air - full arc
+	};
+	var swingProgress: f32 = 0; // 0.0 to 1.0
+	var isSwinging: bool = false;
+	var swingDuration: f32 = 0.3; // Duration in seconds
+	var swingType: SwingType = .air;
+
 	pub fn update(deltaTime: f64) void {
 		if (deltaTime == 0) return;
 		const dt: f32 = @floatCast(deltaTime);
@@ -578,6 +589,64 @@ pub const ItemDisplayManager = struct { // MARK: ItemDisplayManager
 		cameraFollowVel = n1/(n2*n2);
 
 		cameraFollow += cameraFollowVel*@as(Vec3f, @splat(dt));
+
+		// Update swing animation
+		updateSwing(dt);
+	}
+
+	/// Start a swing animation with the specified type and duration
+	pub fn startSwing(swingType_: SwingType, duration: f32) void {
+		swingType = swingType_;
+		swingDuration = duration;
+		swingProgress = 0;
+		isSwinging = true;
+	}
+
+	/// Update swing progress using framerate-independent timing
+	fn updateSwing(dt: f32) void {
+		if (!isSwinging) return;
+
+		swingProgress += dt / swingDuration;
+		if (swingProgress >= 1.0) {
+			swingProgress = 0;
+			isSwinging = false;
+		}
+	}
+
+	/// Check if a swing animation is currently active
+	pub fn isCurrentlySwinging() bool {
+		return isSwinging;
+	}
+
+	/// Get the current swing angle in radians based on swing type and progress
+	/// Returns 0 if not swinging
+	pub fn getSwingAngle() f32 {
+		if (!isSwinging) return 0;
+
+		// Use ease-out curve for natural deceleration
+		const t = swingProgress;
+		const easedT = 1.0 - (1.0 - t) * (1.0 - t); // ease-out quadratic
+
+		return switch (swingType) {
+			.break_ => blk: {
+				// Fast forward arc: -30° to +30° (60 degree total arc)
+				const startAngle = -std.math.pi / 6.0;
+				const endAngle = std.math.pi / 6.0;
+				break :blk startAngle + (endAngle - startAngle) * easedT;
+			},
+			.place => blk: {
+				// Gentle downward motion: +15° to -15°
+				const startAngle = std.math.pi / 12.0;
+				const endAngle = -std.math.pi / 12.0;
+				break :blk startAngle + (endAngle - startAngle) * easedT;
+			},
+			.air => blk: {
+				// Full arm swing: -45° to +45°
+				const startAngle = -std.math.pi / 4.0;
+				const endAngle = std.math.pi / 4.0;
+				break :blk startAngle + (endAngle - startAngle) * easedT;
+			},
+		};
 	}
 };
 
@@ -875,6 +944,14 @@ pub const ItemDropRenderer = struct { // MARK: ItemDropRenderer
 			modelMatrix = modelMatrix.mul(Mat4f.rotationY(-rot[1]));
 			modelMatrix = modelMatrix.mul(Mat4f.rotationX(-rot[0]));
 			modelMatrix = modelMatrix.mul(Mat4f.translation(@floatCast(pos)));
+
+			// Apply swing animation rotation
+			const swingAngle = ItemDisplayManager.getSwingAngle();
+			if (swingAngle != 0) {
+				// Rotate around X axis for arm swing motion, pivoting from the handle
+				modelMatrix = modelMatrix.mul(Mat4f.rotationX(swingAngle));
+			}
+
 			if (!isBlock) {
 				if (item == .tool) {
 					modelMatrix = modelMatrix.mul(Mat4f.rotationZ(-std.math.pi*0.47));
